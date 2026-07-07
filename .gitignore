@@ -45,3 +45,20 @@ server/coverage
 # wrangler
 .wrangler/
 server/.wrangler/
+
+# Python（uv管理）
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# データ（国土数値情報のダウンロード物と生成物。取得手順は data/README.md 参照）
+data/
+
+# Terraform（Phase 2。stateファイルは絶対にコミットしない）
+*.tfstate
+*.tfstate.*
+.terraform/
