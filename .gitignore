@@ -1,0 +1,47 @@
+# ログ
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+# モジュール
+node_modules
+dist
+dist-ssr
+*.local
+
+# VSCodeのエディター設定など
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 機密情報
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.test.example
+
+# キャッシュ
+server/.cache
+
+# DB関係
+server/prisma/dev.db
+server/prisma/*.db-journal
+
+# Vitest
+server/prisma/tests/tmp/test.sqlite
+server/coverage
+
+# wrangler
+.wrangler/
+server/.wrangler/
