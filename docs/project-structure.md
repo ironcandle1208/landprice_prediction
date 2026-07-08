@@ -1,6 +1,6 @@
 # プロジェクト構造
 
-最終更新: 2026-07-07
+最終更新: 2026-07-08
 
 ```
 landprice_prediction/
@@ -30,6 +30,7 @@ landprice_prediction/
 │   └── tests/                 # pytest（preprocessing.featureのシナリオと1対1対応）
 └── docs/
     ├── project-structure.md   # 本ファイル
+    ├── data-structure.md      # データモデル（L01・S12・N02と生成物のER図・属性仕様）
     ├── issue/
     │   └── template.md        # イシュー記録のテンプレート
     └── plan/
