@@ -1,6 +1,6 @@
 # プロジェクト構造
 
-最終更新: 2026-07-08
+最終更新: 2026-07-10
 
 ```
 landprice_prediction/
@@ -33,6 +33,8 @@ landprice_prediction/
     ├── data-structure.md      # データモデル（L01・S12・N02と生成物のER図・属性仕様）
     ├── issue/
     │   └── template.md        # イシュー記録のテンプレート
+    ├── review/
+    │   └── 20260710-codex-review.md   # 前処理パイプライン（c537682）のCodexレビュー結果
     └── plan/
         ├── template.md              # 開発計画のテンプレート
         ├── implementation-plan.md   # 実装計画（地価×駅距離×乗降客数 分析・予測マップ）

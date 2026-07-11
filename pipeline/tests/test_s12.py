@@ -4,6 +4,7 @@ docs/plan/test/preprocessing.feature「ルール: S12の対象年度カラム抽
 コード値はS12-25のスキーマ定義（KsjAppSchema-S12-v3_3.xsd）で確認済み:
 - データ有無コード: 1=データ有, 2=データなし, 3=非公開, 4=駅なし
 - 重複コード: 1=当該路線駅に記載, 2=他路線駅に記載, 3=駅なし
+「駅なし」（データ有無コード=4 / 重複コード=3）のレコードは行ごと除外される。
 """
 
 import geopandas as gpd
@@ -52,9 +53,7 @@ def make_s12_raw(rows: list[tuple[str, str, int, int, float]]) -> gpd.GeoDataFra
 
 def test_extracts_only_target_year_columns() -> None:
     """シナリオ: 対象年度の乗降客数カラムだけが抽出される"""
-    raw = make_s12_raw(
-        [("東京", "003968", 1, 1, 462589.0), ("新橋", "003976", 1, 1, 155343.0)]
-    )
+    raw = make_s12_raw([("東京", "003968", 1, 1, 462589.0), ("新橋", "003976", 1, 1, 155343.0)])
 
     out = extract_passengers(raw, S12Config(target_year=2024))
 
@@ -86,7 +85,8 @@ def test_missing_year_columns_raise_explicit_error() -> None:
         (S12DataStatus.AVAILABLE, 5000.0, False),  # データ有 → 元の値のまま
         (S12DataStatus.MISSING, 9999.0, True),  # データなし → 欠損（NaN）
         (S12DataStatus.PRIVATE, 9999.0, True),  # 非公開 → 欠損（NaN）
-        (S12DataStatus.NO_STATION, 9999.0, True),  # 駅なし → 欠損（NaN）
+        # NO_STATIONは行ごと除外されるため、ここでは検証せず
+        # test_no_station_records_are_excluded で別途検証する
     ],
 )
 def test_data_status_controls_passenger_value(
@@ -108,7 +108,8 @@ def test_data_status_controls_passenger_value(
     [
         (S12Duplicate.RECORDED_ON_THIS_LINE, False),  # 当該路線駅に記載 → 有効
         (S12Duplicate.RECORDED_ON_OTHER_LINE, True),  # 他路線駅に記載 → 欠損（二重計上防止）
-        (S12Duplicate.NO_STATION, True),  # 駅なし → 欠損
+        # NO_STATIONは行ごと除外されるため、ここでは検証せず
+        # test_duplicate_no_station_records_are_excluded で別途検証する
     ],
 )
 def test_duplicate_code_controls_passenger_value(
@@ -138,3 +139,66 @@ def test_zero_passengers_kept_as_zero() -> None:
     # 0は欠損（NaN）に変換されない
     assert out[c.PASSENGERS].iloc[0] == 0.0
     assert not np.isnan(out[c.PASSENGERS].iloc[0])
+
+
+def test_no_station_records_are_excluded() -> None:
+    """シナリオ: 駅なしのレコードは結果から除外される"""
+    raw = make_s12_raw(
+        [
+            ("駅A", "000001", 1, int(S12DataStatus.AVAILABLE), 1000.0),
+            ("駅B", "000002", 1, int(S12DataStatus.NO_STATION), 9999.0),
+        ]
+    )
+
+    out = extract_passengers(raw, S12Config(target_year=2024))
+
+    # 駅なし（駅B）は行ごと除外され、駅Aのみが残る
+    assert len(out) == 1
+    assert out[c.STATION_NAME].tolist() == ["駅A"]
+
+
+def test_duplicate_no_station_records_are_excluded() -> None:
+    """シナリオ: 重複コードが駅なしのレコードも結果から除外される"""
+    raw = make_s12_raw(
+        [
+            ("駅A", "000001", int(S12Duplicate.RECORDED_ON_THIS_LINE), 1, 1000.0),
+            ("駅B", "000002", int(S12Duplicate.NO_STATION), 1, 9999.0),
+        ]
+    )
+
+    out = extract_passengers(raw, S12Config(target_year=2024))
+
+    # 重複コードが駅なし（駅B）は行ごと除外され、駅Aのみが残る
+    assert len(out) == 1
+    assert out[c.STATION_NAME].tolist() == ["駅A"]
+
+
+def test_unknown_data_status_code_raises_error() -> None:
+    """シナリオ: 未知のコードはエラーになる（データ有無コード）"""
+    # 9はデータ有無コードとして未定義の値
+    raw = make_s12_raw([("駅A", "000001", 1, 9, 1000.0)])
+
+    with pytest.raises(S12YearColumnsError, match="未知のコード"):
+        extract_passengers(raw, S12Config(target_year=2024))
+
+
+def test_unknown_duplicate_code_raises_error() -> None:
+    """シナリオ: 未知のコードはエラーになる（重複コード）"""
+    # 9は重複コードとして未定義の値
+    raw = make_s12_raw([("駅A", "000001", 9, 1, 1000.0)])
+
+    with pytest.raises(S12YearColumnsError, match="未知のコード"):
+        extract_passengers(raw, S12Config(target_year=2024))
+
+
+def test_all_rows_no_station_raises_error() -> None:
+    """シナリオ: 対象年度に存在する駅が0件の場合はエラーになる"""
+    raw = make_s12_raw(
+        [
+            ("駅A", "000001", 1, int(S12DataStatus.NO_STATION), 9999.0),
+            ("駅B", "000002", 1, int(S12DataStatus.NO_STATION), 9999.0),
+        ]
+    )
+
+    with pytest.raises(S12YearColumnsError, match="存在する駅がありません"):
+        extract_passengers(raw, S12Config(target_year=2024))
