@@ -23,6 +23,12 @@ def join_nearest_station(
     - 等距離の駅が複数ある場合は重複コード順で先頭の1駅を採用し、結果を再現可能にする
     - 出力の行数・インデックス・CRSは入力の地価データと一致する
     """
+    if land.empty:
+        raise ValueError("地価データが0件です")
+    if stations.empty:
+        raise ValueError("対象年度に利用可能な駅データが0件です")
+    if land.geometry.isna().any() or stations.geometry.isna().any():
+        raise ValueError("ジオメトリが欠損しています")
     if land.crs is None or stations.crs is None:
         raise ValueError("CRS未設定のデータは距離計算できません。CRSを設定してください")
     if not land.index.is_unique:

@@ -7,8 +7,11 @@
 import types
 import typing
 
+import numpy as np
 import pandas as pd
 from pydantic import BaseModel
+
+from landprice import columns as c
 
 
 class FullFeatureSchema(BaseModel):
@@ -94,3 +97,39 @@ def validate_feature_frame(df: pd.DataFrame, model: type[BaseModel]) -> None:
         raise FeatureSchemaError(
             f"特徴量テーブルが{model.__name__}と一致しません: " + " / ".join(problems)
         )
+
+
+def validate_feature_values(df: pd.DataFrame) -> None:
+    """特徴量テーブルの必須値・有限性・値域を検証する。"""
+    required = [
+        c.PRICE,
+        c.STATION_DISTANCE_M,
+        c.CITY_CODE,
+        c.STATION_GROUP_CODE,
+        c.STATION_NAME,
+        c.LON,
+        c.LAT,
+    ]
+    missing_counts = df[required].isna().sum()
+    if (missing_counts > 0).any():
+        raise FeatureSchemaError(
+            f"必須値に欠損があります: {missing_counts[missing_counts > 0].to_dict()}"
+        )
+
+    if not np.isfinite(df[c.PRICE]).all() or (df[c.PRICE] <= 0).any():
+        raise FeatureSchemaError("地価は有限な正数である必要があります")
+
+    if (
+        not np.isfinite(df[c.STATION_DISTANCE_M]).all()
+        or (df[c.STATION_DISTANCE_M] < 0).any()
+    ):
+        raise FeatureSchemaError("駅距離は有限な0以上の値である必要があります")
+
+    passengers = df[c.PASSENGERS].dropna()
+    if not np.isfinite(passengers).all() or (passengers < 0).any():
+        raise FeatureSchemaError("乗降客数は欠損または有限な0以上の値にしてください")
+
+    if not df[c.LON].between(122.0, 154.0).all():
+        raise FeatureSchemaError("経度が日本の想定範囲外です")
+    if not df[c.LAT].between(20.0, 46.0).all():
+        raise FeatureSchemaError("緯度が日本の想定範囲外です")

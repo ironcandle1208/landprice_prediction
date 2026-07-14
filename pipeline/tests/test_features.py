@@ -19,6 +19,7 @@ from landprice.schema import (
     OnlineFeatureSchema,
     expected_dtypes,
     validate_feature_frame,
+    validate_feature_values,
 )
 from tests.conftest import CRS
 
@@ -109,3 +110,76 @@ def test_missing_passengers_not_filled_with_zero() -> None:
     assert pd.isna(full[c.PASSENGERS].iloc[1])
     assert pd.isna(online[c.PASSENGERS].iloc[1])
     assert (full[c.PASSENGERS].fillna(-1) != 0).all()
+
+
+@pytest.mark.parametrize(
+    "column",
+    [
+        c.PRICE,
+        c.STATION_DISTANCE_M,
+        c.CITY_CODE,
+        c.STATION_GROUP_CODE,
+        c.STATION_NAME,
+    ],
+)
+def test_build_feature_tables_rejects_missing_required_value(column: str) -> None:
+    """シナリオ: 特徴量の必須値が欠損している場合は出力しない"""
+    joined = make_joined()
+    joined.loc[joined.index[0], column] = pd.NA
+
+    with pytest.raises(FeatureSchemaError, match="必須値に欠損"):
+        build_feature_tables(joined)
+
+
+@pytest.mark.parametrize("invalid_price", [-1.0, np.inf])
+def test_validate_feature_values_rejects_invalid_price(invalid_price: float) -> None:
+    """シナリオ: 地価が負数または無限大の場合は拒否する"""
+    full, _ = build_feature_tables(make_joined())
+    full.loc[full.index[0], c.PRICE] = invalid_price
+
+    with pytest.raises(FeatureSchemaError, match="地価は有限な正数"):
+        validate_feature_values(full)
+
+
+@pytest.mark.parametrize("invalid_distance", [-1.0, np.inf])
+def test_validate_feature_values_rejects_invalid_station_distance(
+    invalid_distance: float,
+) -> None:
+    """シナリオ: 駅距離が負数または無限大の場合は拒否する"""
+    full, _ = build_feature_tables(make_joined())
+    full.loc[full.index[0], c.STATION_DISTANCE_M] = invalid_distance
+
+    with pytest.raises(FeatureSchemaError, match="駅距離は有限な0以上"):
+        validate_feature_values(full)
+
+
+@pytest.mark.parametrize("invalid_passengers", [-1.0, np.inf])
+def test_validate_feature_values_rejects_invalid_passengers(
+    invalid_passengers: float,
+) -> None:
+    """シナリオ: 乗降客数が負数または無限大の場合は拒否する"""
+    full, _ = build_feature_tables(make_joined())
+    full.loc[full.index[0], c.PASSENGERS] = invalid_passengers
+
+    with pytest.raises(FeatureSchemaError, match="乗降客数は欠損または有限な0以上"):
+        validate_feature_values(full)
+
+
+@pytest.mark.parametrize(
+    ("column", "invalid_value", "message"),
+    [
+        (c.LON, 121.9, "経度が日本の想定範囲外"),
+        (c.LON, 154.1, "経度が日本の想定範囲外"),
+        (c.LAT, 19.9, "緯度が日本の想定範囲外"),
+        (c.LAT, 46.1, "緯度が日本の想定範囲外"),
+    ],
+)
+def test_validate_feature_values_rejects_coordinates_outside_japan(
+    column: str, invalid_value: float, message: str
+) -> None:
+    """シナリオ: 経度・緯度が日本の想定範囲外の場合は拒否する"""
+    full, _ = build_feature_tables(make_joined())
+    full.loc[full.index[0], column] = invalid_value
+
+    with pytest.raises(FeatureSchemaError, match=message):
+        validate_feature_values(full)

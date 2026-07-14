@@ -3,7 +3,9 @@
 docs/plan/test/preprocessing.feature「ルール: 最寄駅の結合（sjoin_nearest）」に対応。
 """
 
+import geopandas as gpd
 import pandas as pd
+import pytest
 
 from landprice import columns as c
 from landprice.preprocess.nearest import join_nearest_station
@@ -104,3 +106,33 @@ def test_remote_island_point_gets_nearest_station() -> None:
 
     assert out[c.STATION_NAME].iloc[0] == "東京"
     assert out[c.STATION_DISTANCE_M].iloc[0] > 50_000.0
+
+
+def test_empty_stations_are_rejected() -> None:
+    """シナリオ: 駅データが0件の場合は結合前に拒否する"""
+    land = make_land([TOKYO])
+    stations = make_stations([])
+
+    with pytest.raises(ValueError, match="対象年度に利用可能な駅データが0件"):
+        join_nearest_station(land, stations)
+
+
+def test_empty_land_is_rejected() -> None:
+    """シナリオ: 地価データが0件の場合は結合前に拒否する"""
+    land = make_land([])
+    stations = make_stations([("003968", "東京", 462589.0, *TOKYO)])
+
+    with pytest.raises(ValueError, match="地価データが0件"):
+        join_nearest_station(land, stations)
+
+
+@pytest.mark.parametrize("missing_geometry", ["land", "stations"])
+def test_missing_geometry_is_rejected(missing_geometry: str) -> None:
+    """シナリオ: 地価または駅のジオメトリが欠損している場合は拒否する"""
+    land = make_land([TOKYO])
+    stations = make_stations([("003968", "東京", 462589.0, *TOKYO)])
+    target: gpd.GeoDataFrame = land if missing_geometry == "land" else stations
+    target.loc[target.index[0], "geometry"] = None
+
+    with pytest.raises(ValueError, match="ジオメトリが欠損"):
+        join_nearest_station(land, stations)

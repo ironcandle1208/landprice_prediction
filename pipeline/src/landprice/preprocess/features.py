@@ -15,6 +15,7 @@ from landprice.schema import (
     FullFeatureSchema,
     OnlineFeatureSchema,
     validate_feature_frame,
+    validate_feature_values,
 )
 
 
@@ -48,6 +49,7 @@ def build_feature_tables(
         index=gdf.index,
     )
     validate_feature_frame(full, FullFeatureSchema)
+    validate_feature_values(full)
 
     online = full[list(OnlineFeatureSchema.model_fields)].copy()
     validate_feature_frame(online, OnlineFeatureSchema)
