@@ -59,6 +59,39 @@ def test_multilinestring_converted_to_point() -> None:
     assert out.geometry.iloc[0].geom_type == "Point"
 
 
+def test_to_points_rejects_missing_crs() -> None:
+    """CRS未設定の駅データは重心計算前に拒否する。"""
+    line = LineString([(139.700, 35.680), (139.702, 35.680)])
+    gdf = gpd.GeoDataFrame({"name": ["東京"]}, geometry=[line])
+
+    with pytest.raises(ValueError, match="CRSが設定されていません"):
+        to_points(gdf)
+
+
+@pytest.mark.parametrize("geometry", [None, Point()])
+def test_to_points_rejects_missing_or_empty_geometry(geometry: Point | None) -> None:
+    """欠損または空形状の駅ジオメトリは明示的に拒否する。"""
+    gdf = gpd.GeoDataFrame({"name": ["東京"]}, geometry=[geometry], crs=CRS)
+
+    with pytest.raises(ValueError, match="欠損または空形状"):
+        to_points(gdf)
+
+
+def test_to_points_uses_metric_crs_for_projected_input() -> None:
+    """投影座標系の入力でも指定したmetric_crs上で重心を計算する。"""
+    line = LineString([(130.0, 30.0), (140.0, 35.0), (145.0, 45.0)])
+    source = gpd.GeoDataFrame({"name": ["広域駅"]}, geometry=[line], crs=CRS).to_crs("EPSG:6691")
+    expected = source.to_crs("EPSG:3857").geometry.centroid.to_crs(source.crs).iloc[0]
+    source_crs_centroid = source.geometry.centroid.iloc[0]
+
+    out = to_points(source, metric_crs="EPSG:3857")
+
+    assert out.crs == source.crs
+    assert out.geometry.iloc[0].equals_exact(expected, tolerance=1e-6)
+    # 入力CRS上で直接求めた重心とは異なることを確認し、投影処理の省略を検出する。
+    assert out.geometry.iloc[0].distance(source_crs_centroid) > 0.01
+
+
 def test_same_group_code_consolidated_with_summed_passengers() -> None:
     """シナリオ: 複数事業者の同名駅が重複コードで1レコードに名寄せされる"""
     # 東京メトロ・都営・（例示として）東西線の「大手町」3事業者レコード

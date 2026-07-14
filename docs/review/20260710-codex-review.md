@@ -156,7 +156,7 @@ if land.geometry.isna().any() or stations.geometry.isna().any():
 
 ### 3. [高] CRSの扱いが関数ごとに一貫していない
 
-- [ ] 修正済み
+- [x] 修正済み
 
 **該当箇所**: `pipeline/src/landprice/preprocess/features.py:33`、`pipeline/src/landprice/preprocess/validation.py:25`、`pipeline/src/landprice/preprocess/stations.py:20`
 

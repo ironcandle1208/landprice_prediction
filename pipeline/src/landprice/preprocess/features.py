@@ -31,7 +31,9 @@ def build_feature_tables(
     """
     if joined.crs is None:
         raise ValueError("CRS未設定のデータからは座標（lon/lat）を出力できません")
-    gdf = joined if joined.crs.is_geographic else joined.to_crs(geographic_crs)
+
+    # 地理座標系同士でも測地系が異なる可能性があるため、常に指定CRSへ変換する。
+    gdf = joined.to_crs(geographic_crs)
 
     full = pd.DataFrame(
         {

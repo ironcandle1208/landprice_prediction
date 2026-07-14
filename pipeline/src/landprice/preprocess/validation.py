@@ -17,13 +17,22 @@ def find_out_of_japan_bounds(
     *,
     lon_range: tuple[float, float] = (122.0, 154.0),
     lat_range: tuple[float, float] = (20.0, 46.0),
+    geographic_crs: str = "EPSG:6668",
 ) -> gpd.GeoDataFrame:
     """日本の座標範囲外の地点を返す。該当があれば警告も発する。
 
-    範囲外の座標は測地系変換ミスや経度・緯度の取り違えの兆候。
+    指定した地理座標系へ変換してから経緯度を検査する。範囲外の座標は
+    測地系変換ミスや経度・緯度の取り違えの兆候。
     """
-    lon = gdf.geometry.x
-    lat = gdf.geometry.y
+    if gdf.crs is None:
+        raise ValueError("CRS未設定のデータは座標範囲を検証できません")
+
+    geographic = gdf.to_crs(geographic_crs)
+    if not (geographic.geometry.geom_type == "Point").all():
+        raise ValueError("座標範囲検証にはPointジオメトリが必要です")
+
+    lon = geographic.geometry.x
+    lat = geographic.geometry.y
     out_of_bounds = gdf[
         (lon < lon_range[0])
         | (lon > lon_range[1])

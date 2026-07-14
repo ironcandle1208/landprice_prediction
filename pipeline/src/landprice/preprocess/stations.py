@@ -11,16 +11,19 @@ from landprice import columns as c
 
 
 def to_points(gdf: gpd.GeoDataFrame, *, metric_crs: str = "EPSG:6691") -> gpd.GeoDataFrame:
-    """ライン形状（LineString / MultiLineString）の駅を重心ポイントに変換する。
+    """指定したメートル座標系で駅形状の重心を計算する。
 
-    地理座標系（緯度経度）のまま重心を計算すると歪みが出るため、
-    投影座標系（metric_crs）で重心を計算してから元のCRSへ戻す。
+    入力CRSの種類にかかわらず、投影座標系（metric_crs）で重心を計算してから
+    元のCRSへ戻す。これにより、入力CRSによる計算結果の差異を防ぐ。
     """
+    if gdf.crs is None:
+        raise ValueError("駅データにCRSが設定されていません")
+    if gdf.geometry.isna().any() or gdf.geometry.is_empty.any():
+        raise ValueError("駅ジオメトリに欠損または空形状があります")
+
+    projected = gdf.to_crs(metric_crs)
     out = gdf.copy()
-    if gdf.crs is not None and gdf.crs.is_geographic:
-        out.geometry = out.geometry.to_crs(metric_crs).centroid.to_crs(gdf.crs)
-    else:
-        out.geometry = out.geometry.centroid
+    out.geometry = projected.geometry.centroid.to_crs(gdf.crs)
     return out
 
 

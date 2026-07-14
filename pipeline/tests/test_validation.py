@@ -5,8 +5,10 @@ docs/plan/test/preprocessing.feature の
 「自前計算の直線距離がL01付属の道路距離と矛盾しない」に対応。
 """
 
+import geopandas as gpd
 import pandas as pd
 import pytest
+from shapely.geometry import LineString
 
 from landprice import columns as c
 from landprice.preprocess.validation import (
@@ -45,6 +47,38 @@ def test_no_warning_when_all_points_in_japan() -> None:
         bad = find_out_of_japan_bounds(land)
 
     assert len(bad) == 0
+
+
+def test_out_of_japan_bounds_rejects_missing_crs() -> None:
+    """CRS未設定の入力は座標範囲を検証できないため拒否する。"""
+    land = make_land([(139.767, 35.681)]).set_crs(None, allow_override=True)
+
+    with pytest.raises(ValueError, match="CRS未設定"):
+        find_out_of_japan_bounds(land)
+
+
+def test_out_of_japan_bounds_rejects_non_point_geometry() -> None:
+    """Point以外のジオメトリは経緯度の地点検査に使用しない。"""
+    land = gpd.GeoDataFrame(
+        {"point_id": [0]},
+        geometry=[LineString([(139.7, 35.6), (139.8, 35.7)])],
+        crs="EPSG:6668",
+    )
+
+    with pytest.raises(ValueError, match="Pointジオメトリ"):
+        find_out_of_japan_bounds(land)
+
+
+def test_projected_point_is_checked_after_geographic_conversion() -> None:
+    """EPSG:6691の正常地点を誤判定せず、該当行は入力CRSのまま返す。"""
+    projected = make_land([(139.767, 35.681), (200.0, 35.0)]).to_crs("EPSG:6691")
+
+    with pytest.warns(UserWarning, match="範囲外"):
+        bad = find_out_of_japan_bounds(projected, geographic_crs="EPSG:6668")
+
+    assert bad["point_id"].tolist() == [1]
+    assert bad.crs == projected.crs
+    assert bad.geometry.iloc[0].equals(projected.geometry.iloc[1])
 
 
 def test_straight_distance_exceeding_road_distance_reported() -> None:

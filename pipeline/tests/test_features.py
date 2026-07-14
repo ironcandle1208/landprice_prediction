@@ -64,6 +64,38 @@ def test_output_schema_matches_definition() -> None:
         validate_feature_frame(full.drop(columns=[c.PRICE]), FullFeatureSchema)
 
 
+def test_build_feature_tables_rejects_missing_crs() -> None:
+    """CRS未設定の入力からは経緯度を出力しない。"""
+    joined = make_joined().set_crs(None, allow_override=True)
+
+    with pytest.raises(ValueError, match="CRS未設定"):
+        build_feature_tables(joined)
+
+
+def test_build_feature_tables_converts_epsg4326_to_epsg6668(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """EPSG:4326入力も指定されたEPSG:6668へ明示的に変換する。"""
+    joined = make_joined().set_crs("EPSG:4326", allow_override=True)
+    original_to_crs = gpd.GeoDataFrame.to_crs
+    converted_crs: list[str] = []
+
+    # 測地系変換で数値が変わらない環境でも、変換呼び出し自体を検証できるよう記録する。
+    def tracking_to_crs(self: gpd.GeoDataFrame, crs: str) -> gpd.GeoDataFrame:
+        """GeoDataFrameの変換先CRSを記録してから通常の変換を行う。"""
+        converted_crs.append(crs)
+        return original_to_crs(self, crs)
+
+    monkeypatch.setattr(gpd.GeoDataFrame, "to_crs", tracking_to_crs)
+
+    full, _ = build_feature_tables(joined, geographic_crs="EPSG:6668")
+    expected = original_to_crs(joined, "EPSG:6668")
+
+    assert converted_crs == ["EPSG:6668"]
+    assert full[c.LON].tolist() == pytest.approx(expected.geometry.x.tolist())
+    assert full[c.LAT].tolist() == pytest.approx(expected.geometry.y.tolist())
+
+
 def test_output_row_count_matches_input() -> None:
     """シナリオ: 出力行数が入力の地価地点数と一致する"""
     full, online = build_feature_tables(make_joined(100))

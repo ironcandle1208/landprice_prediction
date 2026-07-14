@@ -57,7 +57,10 @@ def run_pipeline(
 
     # 座標検証（行は削除せずレポートのみ）
     out_of_bounds = find_out_of_japan_bounds(
-        land, lon_range=config.japan_lon_range, lat_range=config.japan_lat_range
+        land,
+        lon_range=config.japan_lon_range,
+        lat_range=config.japan_lat_range,
+        geographic_crs=config.geographic_crs,
     )
 
     # 駅のポイント化 → 駅グループ名寄せ → 最寄駅結合
