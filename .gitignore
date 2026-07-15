@@ -62,3 +62,5 @@ data/
 *.tfstate
 *.tfstate.*
 .terraform/
+# フロントエンドに配置する生成データ（data/models/ からコピーする。Git管理外）
+frontend/public/data/

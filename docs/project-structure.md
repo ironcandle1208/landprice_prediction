@@ -34,6 +34,20 @@ landprice_prediction/
 │   │       ├── geojson.py     # OOF予測・乖離率付きGeoJSON生成
 │   │       └── run.py         # 学習実行エントリポイント（CLI）
 │   └── tests/                 # pytest（前処理は preprocessing.feature のシナリオと1対1対応）
+├── frontend/                  # 地価予測マップ（React + TypeScript + Vite + MapLibre GL JS）
+│   ├── README.md              # セットアップ・データ配置手順・コマンド
+│   ├── index.html             # エントリHTML（タイトル・description）
+│   ├── package.json           # 依存（maplibre-gl）・scripts（dev/build/test/lint）
+│   ├── public/
+│   │   ├── data/              # Git管理外。data/models/predictions.geojson を手動コピー
+│   │   └── favicon.svg
+│   └── src/
+│       ├── main.tsx           # Reactエントリポイント
+│       ├── App.tsx            # MapLibre地図・凡例・出典表記・「このサイトについて」モーダル
+│       ├── App.css / index.css # 地図UI・モバイル対応スタイル
+│       └── lib/
+│           ├── formatters.ts       # ポップアップ表示整形の純関数（+ formatters.test.ts）
+│           └── mapStyle.ts         # 乖離率→色変換・circle paint式生成（+ mapStyle.test.ts）
 └── docs/
     ├── project-structure.md   # 本ファイル
     ├── data-structure.md      # データモデル（L01・S12・N02と生成物のER図・属性仕様）
@@ -52,6 +66,8 @@ landprice_prediction/
 ## 備考
 
 - `test/` 配下の `.feature` ファイルは実行しない設計ドキュメント。pytestのテストリストとして使用する（詳細は実装計画の「テスト方針」参照）
-- Phase 1のうち前処理・モデル学習パイプラインは実装済み（実データで実行確認済み。OOF評価: フル対数R²=0.918、オンライン対数R²=0.849）。フロントエンド・公開（S3 + CloudFront）は未着手
+- Phase 1のうち前処理・モデル学習パイプライン・フロントエンドは実装済み（パイプラインは実データで実行確認済み。OOF評価: フル対数R²=0.918、オンライン対数R²=0.849）。公開（S3 + CloudFront）は未着手
+- PMTiles化はPhase 1では見送り（predictions.geojsonは実測14MBで、配信時のgzip/brotli圧縮により実用域のため）
+- フロントエンドのコマンドは `cd frontend && npm run dev` / `npm run build` / `npm test` / `npm run lint`（詳細は `frontend/README.md`）
 - macOSでLightGBMを実行する場合はlibompが必要（回避策は `pipeline/README.md` 参照）
 - Python実行は `cd pipeline && uv run ...`。品質チェックは `uv run pytest` / `uv run ruff check .` / `uv run mypy src tests`
