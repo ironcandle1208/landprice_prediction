@@ -44,6 +44,22 @@ class OnlineFeatureSchema(BaseModel):
     lat: float
 
 
+class PredictionGeoJsonSchema(BaseModel):
+    """OOF予測を付与したGeoJSON生成前のテーブルスキーマ。"""
+
+    price_yen_per_m2: float  # 実測地価（円/m²）
+    predicted_price_yen_per_m2: float  # OOF予測地価（円/m²）
+    deviation_rate: float  # （実測地価 - 予測地価）/ 予測地価
+    station_name: str  # 最寄駅名（ポップアップ表示用）
+    station_distance_m: float  # 最寄駅までの直線距離（メートル）
+    passengers: float | None  # 乗降客数（非公開等は欠損）
+    use_district: str | None  # 用途地域
+    floor_area_ratio: float | None  # 容積率（上限）
+    city_code: str  # 市区町村コード
+    lon: float  # 経度
+    lat: float  # 緯度
+
+
 class FeatureSchemaError(ValueError):
     """特徴量テーブルがスキーマ定義と一致しない場合の例外。"""
 
@@ -133,3 +149,45 @@ def validate_feature_values(df: pd.DataFrame) -> None:
         raise FeatureSchemaError("経度が日本の想定範囲外です")
     if not df[c.LAT].between(20.0, 46.0).all():
         raise FeatureSchemaError("緯度が日本の想定範囲外です")
+
+
+def validate_prediction_frame(df: pd.DataFrame) -> None:
+    """GeoJSON生成前のカラム・型・必須値・有限性を検証する。"""
+    validate_feature_frame(df, PredictionGeoJsonSchema)
+
+    required = [
+        c.PRICE,
+        c.PREDICTED_PRICE,
+        c.DEVIATION_RATE,
+        c.STATION_NAME,
+        c.STATION_DISTANCE_M,
+        c.CITY_CODE,
+        c.LON,
+        c.LAT,
+    ]
+    missing_counts = df[required].isna().sum()
+    if (missing_counts > 0).any():
+        raise FeatureSchemaError(
+            f"GeoJSONの必須値に欠損があります: {missing_counts[missing_counts > 0].to_dict()}"
+        )
+
+    if not np.isfinite(df[c.PRICE]).all() or (df[c.PRICE] <= 0).any():
+        raise FeatureSchemaError("GeoJSONの実測地価は有限な正数である必要があります")
+    if (
+        not np.isfinite(df[c.PREDICTED_PRICE]).all()
+        or (df[c.PREDICTED_PRICE] <= 0).any()
+    ):
+        raise FeatureSchemaError("GeoJSONの予測地価は有限な正数である必要があります")
+    if not np.isfinite(df[c.DEVIATION_RATE]).all():
+        raise FeatureSchemaError("乖離率は有限値である必要があります")
+
+    optional_numeric = [c.PASSENGERS, c.FLOOR_AREA_RATIO]
+    for name in optional_numeric:
+        values = df[name].dropna()
+        if not np.isfinite(values).all():
+            raise FeatureSchemaError(f"{name}は欠損または有限値である必要があります")
+
+    if not df[c.LON].between(122.0, 154.0).all():
+        raise FeatureSchemaError("GeoJSONの経度が日本の想定範囲外です")
+    if not df[c.LAT].between(20.0, 46.0).all():
+        raise FeatureSchemaError("GeoJSONの緯度が日本の想定範囲外です")

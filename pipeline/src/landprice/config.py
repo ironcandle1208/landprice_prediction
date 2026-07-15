@@ -10,8 +10,29 @@
 """
 
 from enum import IntEnum
+from typing import Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
+
+from landprice import columns as c
+
+
+def _default_lightgbm_params() -> dict[str, str | int | float | bool]:
+    """再現性を優先したLightGBMの既定パラメータを返す。"""
+    return {
+        "objective": "regression",
+        "metric": "rmse",
+        "learning_rate": 0.05,
+        "num_leaves": 31,
+        "min_data_in_leaf": 20,
+        "feature_fraction": 1.0,
+        "bagging_fraction": 1.0,
+        "verbosity": -1,
+        # 並列実行時のわずかな差も避け、実験の再現性を優先する。
+        "num_threads": 1,
+        "deterministic": True,
+        "force_col_wise": True,
+    }
 
 
 class S12DataStatus(IntEnum):
@@ -82,3 +103,53 @@ class PipelineConfig(BaseModel):
     # 日本の座標範囲（座標検証用。実装計画のテストシナリオ準拠）
     japan_lon_range: tuple[float, float] = (122.0, 154.0)
     japan_lat_range: tuple[float, float] = (20.0, 46.0)
+
+
+class TrainConfig(BaseModel):
+    """LightGBMによる2系統のモデル学習設定。"""
+
+    seed: int = Field(default=42, ge=0)
+    n_splits: int = Field(default=5, ge=2)
+    num_boost_round: int = Field(default=200, ge=1)
+    lightgbm_params: dict[str, str | int | float | bool] = Field(
+        default_factory=_default_lightgbm_params
+    )
+    full_features: list[str] = Field(
+        default_factory=lambda: [
+            c.STATION_DISTANCE_M,
+            c.PASSENGERS,
+            c.USE_DISTRICT,
+            c.FLOOR_AREA_RATIO,
+            c.CITY_CODE,
+            c.LON,
+            c.LAT,
+        ]
+    )
+    online_features: list[str] = Field(
+        default_factory=lambda: [
+            c.STATION_DISTANCE_M,
+            c.PASSENGERS,
+            c.LON,
+            c.LAT,
+        ]
+    )
+    full_categorical_features: list[str] = Field(
+        default_factory=lambda: [c.USE_DISTRICT, c.CITY_CODE]
+    )
+    online_categorical_features: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_feature_settings(self) -> Self:
+        """特徴量の重複とカテゴリカル特徴量の包含関係を検証する。"""
+        for model_name, features, categorical in (
+            ("full", self.full_features, self.full_categorical_features),
+            ("online", self.online_features, self.online_categorical_features),
+        ):
+            if len(features) != len(set(features)):
+                raise ValueError(f"{model_name}の特徴量に重複があります")
+            unknown = set(categorical) - set(features)
+            if unknown:
+                raise ValueError(
+                    f"{model_name}のカテゴリカル特徴量が特徴量一覧にありません: {sorted(unknown)}"
+                )
+        return self
