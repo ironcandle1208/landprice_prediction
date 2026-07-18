@@ -21,7 +21,7 @@ from landprice.schema import (
     validate_feature_frame,
     validate_feature_values,
 )
-from tests.conftest import CRS
+from tests.helpers import CRS
 
 
 def make_joined(n: int = 3, *, passengers_nan_at: int | None = None) -> gpd.GeoDataFrame:

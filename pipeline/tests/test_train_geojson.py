@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from landprice import columns as c
@@ -13,6 +12,7 @@ from landprice.train.geojson import (
     calculate_deviation_rate,
     write_predictions_geojson,
 )
+from tests.helpers import make_synthetic_feature_tables
 
 
 def test_calculate_deviation_rate() -> None:
@@ -25,11 +25,9 @@ def test_calculate_deviation_rate() -> None:
     np.testing.assert_allclose(result, [0.2, -0.2, 0.0])
 
 
-def test_prediction_geojson_schema_accepts_valid_frame(
-    synthetic_feature_tables: tuple[pd.DataFrame, pd.DataFrame], tmp_path: Path
-) -> None:
+def test_prediction_geojson_schema_accepts_valid_frame(tmp_path: Path) -> None:
     """正常な予測テーブルを検証し、GeoJSONとして出力できる。"""
-    full, _ = synthetic_feature_tables
+    full, _ = make_synthetic_feature_tables()
     predicted = full[c.PRICE].to_numpy(dtype=np.float64) * 0.9
     frame = build_prediction_frame(full, predicted)
 
@@ -42,22 +40,18 @@ def test_prediction_geojson_schema_accepts_valid_frame(
     assert '"passengers": null' in output_path.read_text(encoding="utf-8")
 
 
-def test_prediction_geojson_schema_rejects_missing_column(
-    synthetic_feature_tables: tuple[pd.DataFrame, pd.DataFrame],
-) -> None:
+def test_prediction_geojson_schema_rejects_missing_column() -> None:
     """必須カラムが欠落した予測テーブルを拒否する。"""
-    full, _ = synthetic_feature_tables
+    full, _ = make_synthetic_feature_tables()
     frame = build_prediction_frame(full, full[c.PRICE].to_numpy(dtype=np.float64))
 
     with pytest.raises(FeatureSchemaError, match="カラム構成が不一致"):
         validate_prediction_frame(frame.drop(columns=[c.DEVIATION_RATE]))
 
 
-def test_prediction_geojson_schema_rejects_infinite_deviation(
-    synthetic_feature_tables: tuple[pd.DataFrame, pd.DataFrame],
-) -> None:
+def test_prediction_geojson_schema_rejects_infinite_deviation() -> None:
     """乖離率が有限値でない予測テーブルを拒否する。"""
-    full, _ = synthetic_feature_tables
+    full, _ = make_synthetic_feature_tables()
     frame = build_prediction_frame(full, full[c.PRICE].to_numpy(dtype=np.float64))
     frame.loc[frame.index[0], c.DEVIATION_RATE] = np.inf
 

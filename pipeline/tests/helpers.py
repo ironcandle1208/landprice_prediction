@@ -1,4 +1,4 @@
-"""テスト共通のフィクスチャビルダー。
+"""テスト共通のデータビルダー。
 
 テストは実データに依存せず、数行の小さなGeoDataFrameで行う
 （実装計画「テスト方針」参照）。座標はJGD2011（EPSG:6668）の経度緯度。
@@ -7,7 +7,6 @@
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import pytest
 
 from landprice import columns as c
 from landprice.schema import OnlineFeatureSchema
@@ -41,8 +40,7 @@ def make_land(coords: list[tuple[float, float]]) -> gpd.GeoDataFrame:
     )
 
 
-@pytest.fixture
-def synthetic_feature_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
+def make_synthetic_feature_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
     """学習スモークテスト用の小さなフル・オンライン特徴量を作る。"""
     n_rows = 36
     positions = np.arange(n_rows, dtype=np.float64)

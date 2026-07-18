@@ -16,7 +16,7 @@ from shapely.geometry import LineString
 from landprice import columns as c
 from landprice.config import S12Config, S12DataStatus, S12Duplicate
 from landprice.preprocess.s12 import S12YearColumnsError, extract_passengers
-from tests.conftest import CRS
+from tests.helpers import CRS
 
 
 def make_s12_raw(rows: list[tuple[str, str, int, int, float]]) -> gpd.GeoDataFrame:

@@ -9,7 +9,7 @@ from shapely.geometry import Point
 from landprice import columns as c
 from landprice.config import L01ColumnMap
 from landprice.preprocess.l01 import load_land_points
-from tests.conftest import CRS
+from tests.helpers import CRS
 
 # テスト用の属性コードマッピング（実データの属性コードは年度により異なる）
 # 検証用の任意カラム（最寄駅名・道路距離）はこのフィクスチャには含めない

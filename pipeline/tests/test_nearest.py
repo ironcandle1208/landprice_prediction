@@ -9,7 +9,7 @@ import pytest
 
 from landprice import columns as c
 from landprice.preprocess.nearest import join_nearest_station
-from tests.conftest import make_land, make_stations
+from tests.helpers import make_land, make_stations
 
 # 東京駅・新橋駅のおおよその座標（経度, 緯度）
 TOKYO = (139.7671, 35.6812)

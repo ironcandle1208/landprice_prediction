@@ -19,7 +19,7 @@ from landprice.config import S12Config, S12DataStatus, S12Duplicate
 from landprice.preprocess.nearest import join_nearest_station
 from landprice.preprocess.s12 import extract_passengers
 from landprice.preprocess.stations import consolidate_by_group, to_points
-from tests.conftest import CRS, make_land
+from tests.helpers import CRS, make_land
 
 
 def make_s12_raw_with_coords(

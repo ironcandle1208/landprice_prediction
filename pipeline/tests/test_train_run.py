@@ -4,17 +4,15 @@ import json
 from pathlib import Path
 
 import lightgbm as lgb
-import pandas as pd
 
 from landprice.config import TrainConfig
 from landprice.train.run import run_training
+from tests.helpers import make_synthetic_feature_tables
 
 
-def test_training_pipeline_writes_all_artifacts(
-    synthetic_feature_tables: tuple[pd.DataFrame, pd.DataFrame], tmp_path: Path
-) -> None:
+def test_training_pipeline_writes_all_artifacts(tmp_path: Path) -> None:
     """合成データの学習からモデル・評価・GeoJSON保存まで完走する。"""
-    full, online = synthetic_feature_tables
+    full, online = make_synthetic_feature_tables()
     full_path = tmp_path / "features_full.parquet"
     online_path = tmp_path / "features_online.parquet"
     output_dir = tmp_path / "models"

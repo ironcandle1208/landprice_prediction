@@ -15,7 +15,7 @@ from landprice.preprocess.validation import (
     find_distance_inconsistencies,
     find_out_of_japan_bounds,
 )
-from tests.conftest import make_land
+from tests.helpers import make_land
 
 
 def test_out_of_japan_bounds_detected() -> None:

@@ -13,7 +13,7 @@ from shapely.geometry import LineString, MultiLineString, Point
 
 from landprice import columns as c
 from landprice.preprocess.stations import consolidate_by_group, to_points
-from tests.conftest import CRS
+from tests.helpers import CRS
 
 
 def make_extracted(
